@@ -42,12 +42,17 @@ interface AppState {
   isLoading: boolean;
   statusMessage: string | null;
 
+  // History
+  recentFolders: string[];
+
   // Actions
   init: () => Promise<void>;
   openFolder: (folderPath: string) => Promise<void>;
   previewFile: (filePath: string) => Promise<void>;
   pickFolder: () => Promise<void>;
   pickFile: () => Promise<void>;
+  removeRecentFolder: (folderPath: string) => void;
+  clearRecentFolders: () => void;
   toggleFolder: (folderPath: string) => Promise<void>;
   selectFile: (filePath: string) => Promise<void>;
   setFileContent: (content: string) => void;
@@ -91,8 +96,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   isLoading: false,
   statusMessage: null,
 
+  recentFolders: [],
+
   init: async () => {
     try {
+      const stored = localStorage.getItem("lite_viewer_recent_folders");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            set({ recentFolders: parsed });
+          }
+        } catch (e) {
+          console.error("Failed to parse recent folders", e);
+        }
+      }
+
       const cliArg = await invoke<string | null>("get_cli_arg");
       if (cliArg) {
         const info = await invoke<PathInfo>("get_path_info", { targetPath: cliArg });
@@ -114,6 +133,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       const info = await invoke<PathInfo>("get_path_info", { targetPath: folderPath });
       const entries = await invoke<FileEntry[]>("read_dir", { dirPath: folderPath });
 
+      // Update recent folders
+      const currentRecent = get().recentFolders;
+      const updatedRecent = [
+        folderPath,
+        ...currentRecent.filter((p) => p !== folderPath),
+      ].slice(0, 15);
+      set({ recentFolders: updatedRecent });
+      try {
+        localStorage.setItem("lite_viewer_recent_folders", JSON.stringify(updatedRecent));
+      } catch (e) {
+        console.error(e);
+      }
+
       set({
         rootPath: folderPath,
         gitRoot: info.git_root,
@@ -133,6 +165,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.error("Failed to open folder:", err);
     } finally {
       set({ isLoading: false, statusMessage: null });
+    }
+  },
+
+  removeRecentFolder: (folderPath: string) => {
+    const updated = get().recentFolders.filter((p) => p !== folderPath);
+    set({ recentFolders: updated });
+    try {
+      localStorage.setItem("lite_viewer_recent_folders", JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  clearRecentFolders: () => {
+    set({ recentFolders: [] });
+    try {
+      localStorage.removeItem("lite_viewer_recent_folders");
+    } catch (e) {
+      console.error(e);
     }
   },
 

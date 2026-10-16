@@ -59,6 +59,7 @@ pub struct GitStatusResult {
     pub ahead: u32,
     pub behind: u32,
     pub files: Vec<GitChangedFile>,
+    pub ignored_paths: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -164,11 +165,8 @@ fn read_dir(dir_path: String) -> Result<Vec<FileEntry>, String> {
         let p = item.path();
         let name = item.file_name().to_string_lossy().to_string();
 
-        // Filter out hidden / noise directories
-        if name.starts_with('.') && name != ".env" {
-            continue;
-        }
-        if name == "node_modules" || name == "target" || name == "dist" || name == "build" {
+        // Only filter out the internal .git metadata folder
+        if name == ".git" {
             continue;
         }
 
@@ -214,7 +212,7 @@ fn write_file(file_path: String, content: String) -> Result<(), String> {
 #[tauri::command]
 fn get_git_status(repo_path: String) -> Result<GitStatusResult, String> {
     let output = create_hidden_command("git")
-        .args(["-C", &repo_path, "status", "--porcelain=v1", "-b"])
+        .args(["-C", &repo_path, "status", "--porcelain=v1", "-b", "--ignored=traditional"])
         .output()
         .map_err(|e| format!("Failed to run git status: {}", e))?;
 
@@ -231,6 +229,7 @@ fn get_git_status(repo_path: String) -> Result<GitStatusResult, String> {
     let mut ahead = 0;
     let mut behind = 0;
     let mut files = Vec::new();
+    let mut ignored_paths = Vec::new();
 
     if let Some(header) = lines.next() {
         // e.g. ## main...origin/main [ahead 1, behind 2]
@@ -269,6 +268,11 @@ fn get_git_status(repo_path: String) -> Result<GitStatusResult, String> {
         let worktree_status = &line[1..2];
         let file_path = line[3..].trim().to_string();
 
+        if index_status == "!" && worktree_status == "!" {
+            ignored_paths.push(file_path);
+            continue;
+        }
+
         let is_staged = index_status != " " && index_status != "?";
         let status = if index_status != " " && index_status != "?" {
             index_status.to_string()
@@ -289,6 +293,7 @@ fn get_git_status(repo_path: String) -> Result<GitStatusResult, String> {
         ahead,
         behind,
         files,
+        ignored_paths,
     })
 }
 

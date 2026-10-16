@@ -36,6 +36,7 @@ export interface GitStatusResult {
   ahead: number;
   behind: number;
   files: GitChangedFile[];
+  ignored_paths: string[];
 }
 
 export interface CommitFileStat {
