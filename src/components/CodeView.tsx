@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Prism from "../utils/prismSetup";
 import { Copy, Check, FileCode, Edit3, Save } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
@@ -9,6 +9,8 @@ export const CodeView: React.FC = () => {
     currentFileName,
     fileContent,
     isDirty,
+    fileScrollPositions,
+    saveScrollPosition,
     setFileContent,
     saveCurrentFile,
   } = useAppStore();
@@ -16,6 +18,10 @@ export const CodeView: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isRestoringScroll = useRef(false);
 
   // Determine prism language
   const language = useMemo(() => {
@@ -80,6 +86,42 @@ export const CodeView: React.FC = () => {
       return fileContent;
     }
   }, [fileContent, language]);
+
+  // Restore scroll position when switching file or toggling mode
+  useEffect(() => {
+    if (!currentFilePath) return;
+    const targetScroll = fileScrollPositions[currentFilePath] ?? 0;
+
+    isRestoringScroll.current = true;
+    const rafId = requestAnimationFrame(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = targetScroll;
+      }
+      if (textareaRef.current) {
+        textareaRef.current.scrollTop = targetScroll;
+      }
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = targetScroll;
+        }
+        if (textareaRef.current) {
+          textareaRef.current.scrollTop = targetScroll;
+        }
+        setTimeout(() => {
+          isRestoringScroll.current = false;
+        }, 80);
+      });
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [currentFilePath, highlightedHtml, isEditing]);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    if (isRestoringScroll.current) return;
+    if (currentFilePath) {
+      saveScrollPosition(currentFilePath, e.currentTarget.scrollTop);
+    }
+  };
 
   const copyCode = () => {
     navigator.clipboard.writeText(fileContent);
@@ -190,11 +232,17 @@ export const CodeView: React.FC = () => {
       </div>
 
       {/* Code Content Area */}
-      <div className="flex-1 overflow-auto bg-[#141416]">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-auto bg-[#141416]"
+      >
         {isEditing ? (
           <textarea
+            ref={textareaRef}
             value={fileContent}
             onChange={(e) => setFileContent(e.target.value)}
+            onScroll={handleScroll}
             spellCheck={false}
             className="w-full h-full p-4 bg-transparent text-zinc-200 font-mono text-[12px] leading-relaxed resize-none focus:outline-none select-text"
           />

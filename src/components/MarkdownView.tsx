@@ -18,6 +18,8 @@ export const MarkdownView: React.FC = () => {
     fileContent,
     isDirty,
     markdownMode,
+    fileScrollPositions,
+    saveScrollPosition,
     setFileContent,
     saveCurrentFile,
     setMarkdownMode,
@@ -25,6 +27,8 @@ export const MarkdownView: React.FC = () => {
 
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const isRestoringScroll = useRef(false);
 
   // Configure marked with Prism syntax highlighting
   const htmlContent = useMemo(() => {
@@ -54,6 +58,43 @@ export const MarkdownView: React.FC = () => {
       return `<p class="text-red-400">Markdown 渲染出错: ${err}</p>`;
     }
   }, [fileContent]);
+
+  // Restore scroll position when switching file or rendering content
+  useEffect(() => {
+    if (!currentFilePath) return;
+    const targetScroll = fileScrollPositions[currentFilePath] ?? 0;
+
+    isRestoringScroll.current = true;
+    const rafId = requestAnimationFrame(() => {
+      if (previewRef.current) {
+        previewRef.current.scrollTop = targetScroll;
+      }
+      if (textareaRef.current) {
+        textareaRef.current.scrollTop = targetScroll;
+      }
+      // Double rAF ensures syntax-highlighted / layout-rendered heights are accounted for
+      requestAnimationFrame(() => {
+        if (previewRef.current) {
+          previewRef.current.scrollTop = targetScroll;
+        }
+        if (textareaRef.current) {
+          textareaRef.current.scrollTop = targetScroll;
+        }
+        setTimeout(() => {
+          isRestoringScroll.current = false;
+        }, 80);
+      });
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [currentFilePath, htmlContent, markdownMode]);
+
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    if (isRestoringScroll.current) return;
+    if (currentFilePath) {
+      saveScrollPosition(currentFilePath, e.currentTarget.scrollTop);
+    }
+  };
 
   const handleSave = async () => {
     await saveCurrentFile();
@@ -187,6 +228,7 @@ export const MarkdownView: React.FC = () => {
               ref={textareaRef}
               value={fileContent}
               onChange={(e) => setFileContent(e.target.value)}
+              onScroll={handleScroll}
               placeholder="编写或查看 Markdown 源码 (支持 Ctrl+S 保存)..."
               spellCheck={false}
               className="flex-1 w-full p-4 bg-transparent text-zinc-200 font-mono text-[13px] leading-relaxed resize-none focus:outline-none select-text"
@@ -197,6 +239,8 @@ export const MarkdownView: React.FC = () => {
         {/* Preview Pane (shown in 'preview' or 'split' mode) */}
         {(markdownMode === "preview" || markdownMode === "split") && (
           <div
+            ref={previewRef}
+            onScroll={handleScroll}
             className={`flex-1 overflow-y-auto p-6 select-text bg-[#18181b] ${
               markdownMode === "split" ? "w-1/2" : "w-full"
             }`}

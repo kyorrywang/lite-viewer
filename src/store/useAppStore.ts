@@ -45,6 +45,10 @@ interface AppState {
   // History
   recentFolders: string[];
 
+  // Scroll positions per file
+  fileScrollPositions: Record<string, number>;
+  saveScrollPosition: (filePath: string, pos: number) => void;
+
   // Actions
   init: () => Promise<void>;
   openFolder: (folderPath: string) => Promise<void>;
@@ -97,6 +101,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   statusMessage: null,
 
   recentFolders: [],
+  fileScrollPositions: {},
 
   init: async () => {
     try {
@@ -109,6 +114,18 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         } catch (e) {
           console.error("Failed to parse recent folders", e);
+        }
+      }
+
+      const storedScroll = localStorage.getItem("lite_viewer_scroll_positions");
+      if (storedScroll) {
+        try {
+          const parsedScroll = JSON.parse(storedScroll);
+          if (typeof parsedScroll === "object" && parsedScroll !== null) {
+            set({ fileScrollPositions: parsedScroll });
+          }
+        } catch (e) {
+          console.error("Failed to parse scroll positions", e);
         }
       }
 
@@ -182,6 +199,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ recentFolders: [] });
     try {
       localStorage.removeItem("lite_viewer_recent_folders");
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  saveScrollPosition: (filePath: string, pos: number) => {
+    if (!filePath) return;
+    const current = get().fileScrollPositions;
+    // Avoid unnecessary writes and re-renders if pos is essentially unchanged (< 3px)
+    if (Math.abs((current[filePath] ?? -999) - pos) < 3) return;
+
+    const rounded = Math.round(pos);
+    const updated = {
+      ...current,
+      [filePath]: rounded,
+    };
+    set({ fileScrollPositions: updated });
+
+    try {
+      const keys = Object.keys(updated);
+      let toStore = updated;
+      if (keys.length > 100) {
+        const slicedKeys = keys.slice(keys.length - 100);
+        toStore = slicedKeys.reduce<Record<string, number>>((acc, k) => {
+          acc[k] = updated[k];
+          return acc;
+        }, {});
+      }
+      localStorage.setItem("lite_viewer_scroll_positions", JSON.stringify(toStore));
     } catch (e) {
       console.error(e);
     }
