@@ -7,6 +7,7 @@ import {
   Columns,
   Save,
   Check,
+  Copy,
   FileText,
   AlertTriangle,
 } from "lucide-react";
@@ -26,9 +27,17 @@ export const MarkdownView: React.FC = () => {
   } = useAppStore();
 
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
+
+  const handleCopy = () => {
+    if (!fileContent) return;
+    navigator.clipboard.writeText(fileContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Configure marked with Prism syntax highlighting
   const htmlContent = useMemo(() => {
@@ -194,24 +203,44 @@ export const MarkdownView: React.FC = () => {
           )}
         </div>
 
-        {/* Right: Stats & Save Button */}
+        {/* Right: Stats & Action Button */}
         <div className="flex items-center gap-3">
           <div className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
             {linesCount} 行 • {wordCount} 字符
           </div>
 
-          <button
-            onClick={handleSave}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded font-medium transition-all ${
-              isDirty
-                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-600/30"
-                : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-            }`}
-            title="快捷键: Ctrl + S"
-          >
-            <Save size={13} />
-            <span>保存</span>
-          </button>
+          {markdownMode === "preview" ? (
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-3 py-1 rounded font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+              title="复制 Markdown 全文内容"
+            >
+              {copied ? (
+                <>
+                  <Check size={13} className="text-emerald-400" />
+                  <span className="text-emerald-400">已复制</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={13} />
+                  <span>复制</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded font-medium transition-all ${
+                isDirty
+                  ? "bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-600/30"
+                  : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+              }`}
+              title="快捷键: Ctrl + S"
+            >
+              <Save size={13} />
+              <span>保存</span>
+            </button>
+          )}
         </div>
       </div>
 
