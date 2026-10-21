@@ -30,6 +30,50 @@ export const GitView: React.FC = () => {
   const [filterText, setFilterText] = useState("");
   const [viewingUncommitted, setViewingUncommitted] = useState(false);
 
+  const [gitLeftWidth, setGitLeftWidth] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem("lite_viewer_git_width");
+      if (v) {
+        const parsed = parseInt(v, 10);
+        if (!isNaN(parsed) && parsed >= 260 && parsed <= 1200) return parsed;
+      }
+    } catch (e) {}
+    return 440;
+  });
+  const [isDraggingGit, setIsDraggingGit] = useState(false);
+
+  const handleGitResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingGit(true);
+
+    const startX = e.clientX;
+    const startWidth = gitLeftWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const minW = 280;
+      const maxW = Math.max(400, window.innerWidth - 300);
+      const newWidth = Math.max(minW, Math.min(startWidth + deltaX, maxW));
+      setGitLeftWidth(newWidth);
+      try {
+        localStorage.setItem("lite_viewer_git_width", newWidth.toString());
+      } catch (err) {}
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingGit(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
   const filteredCommits = gitCommits.filter((c) => {
     if (!filterText.trim()) return true;
     const q = filterText.toLowerCase();
@@ -74,7 +118,10 @@ export const GitView: React.FC = () => {
   return (
     <div className="flex-1 flex overflow-hidden bg-zinc-950 select-none text-xs">
       {/* Left Pane: Commit Graph List */}
-      <div className="w-1/2 min-w-[340px] max-w-[580px] border-r border-zinc-800/80 flex flex-col">
+      <div
+        style={{ width: `${gitLeftWidth}px` }}
+        className="flex flex-col shrink-0 min-w-[280px]"
+      >
         {/* Graph Header */}
         <div className="h-10 px-3 bg-zinc-900/80 border-b border-zinc-800 flex items-center justify-between text-zinc-300">
           <div className="flex items-center gap-2 font-medium">
@@ -192,6 +239,23 @@ export const GitView: React.FC = () => {
             })
           )}
         </div>
+      </div>
+
+      {/* Resizer divider between commit list and detail */}
+      <div
+        onMouseDown={handleGitResizeStart}
+        onDoubleClick={() => {
+          setGitLeftWidth(440);
+          try {
+            localStorage.setItem("lite_viewer_git_width", "440");
+          } catch (e) {}
+        }}
+        className={`relative w-[1px] bg-zinc-800 hover:bg-blue-500 transition-colors cursor-col-resize shrink-0 z-10 group ${
+          isDraggingGit ? "bg-blue-500 shadow-sm shadow-blue-500/50" : ""
+        }`}
+        title="拖动调整左右大小 (双击重置为 440px)"
+      >
+        <div className="absolute inset-y-0 -left-1.5 -right-1.5 cursor-col-resize z-10" />
       </div>
 
       {/* Right Pane: Commit Detail & Changed Files */}

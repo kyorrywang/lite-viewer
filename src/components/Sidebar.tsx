@@ -232,6 +232,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 export const Sidebar: React.FC = () => {
   const {
     sidebarOpen,
+    sidebarWidth,
     rootPath,
     rootEntries,
     currentFilePath,
@@ -317,7 +318,10 @@ export const Sidebar: React.FC = () => {
   const uncommittedCount = gitStatus?.files.length || 0;
 
   return (
-    <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col shrink-0 select-none text-xs">
+    <aside
+      style={{ width: `${sidebarWidth}px` }}
+      className="bg-zinc-950 flex flex-col shrink-0 select-none text-xs"
+    >
       {/* Directory Title / Actions Header */}
       <div className="h-9 px-3 border-b border-zinc-800/80 bg-zinc-900/60 flex items-center justify-between text-zinc-300">
         <div className="flex items-center gap-1.5 truncate">

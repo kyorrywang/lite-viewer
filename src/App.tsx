@@ -8,10 +8,20 @@ import { CodeView } from "./components/CodeView";
 import { useAppStore } from "./store/useAppStore";
 
 export const App: React.FC = () => {
-  const { init, viewMode, statusMessage, gitRoot, currentFilePath, fileContent } =
-    useAppStore();
+  const {
+    init,
+    viewMode,
+    statusMessage,
+    gitRoot,
+    currentFilePath,
+    fileContent,
+    sidebarOpen,
+    sidebarWidth,
+    setSidebarWidth,
+  } = useAppStore();
 
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
+  const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
 
   const linesCount = fileContent ? fileContent.split("\n").length : 0;
   const charsCount = fileContent ? fileContent.length : 0;
@@ -20,6 +30,35 @@ export const App: React.FC = () => {
     navigator.clipboard.writeText(path);
     setCopiedPath(path);
     setTimeout(() => setCopiedPath(null), 1500);
+  };
+
+  const handleSidebarResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingSidebar(true);
+
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const minW = 160;
+      const maxW = Math.max(300, window.innerWidth - 200);
+      const newWidth = Math.max(minW, Math.min(startWidth + deltaX, maxW));
+      setSidebarWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingSidebar(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   };
 
   useEffect(() => {
@@ -34,6 +73,21 @@ export const App: React.FC = () => {
       {/* Workspace Area: Sidebar + Active View */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
+
+        {/* Resizer divider between Sidebar and Workspace */}
+        {sidebarOpen && (
+          <div
+            onMouseDown={handleSidebarResizeStart}
+            onDoubleClick={() => setSidebarWidth(260)}
+            className={`relative w-[1px] bg-zinc-800 hover:bg-blue-500 transition-colors cursor-col-resize shrink-0 z-20 group ${
+              isDraggingSidebar ? "bg-blue-500 shadow-sm shadow-blue-500/50" : ""
+            }`}
+            title="拖动调整侧边栏宽度 (双击重置为 260px)"
+          >
+            {/* Wider grab handle area so it's effortless to target */}
+            <div className="absolute inset-y-0 -left-1.5 -right-1.5 cursor-col-resize z-10" />
+          </div>
+        )}
 
         <main className="flex-1 flex overflow-hidden">
           {viewMode === "git" && <GitView />}

@@ -11,6 +11,21 @@ import {
 export type ViewMode = "git" | "code" | "markdown";
 export type MarkdownMode = "preview" | "raw" | "split";
 
+const getStoredSidebarWidth = (): number => {
+  try {
+    const v = localStorage.getItem("lite_viewer_sidebar_width");
+    if (v) {
+      const parsed = parseInt(v, 10);
+      if (!isNaN(parsed) && parsed >= 160 && parsed <= 1200) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 260;
+};
+
 interface AppState {
   rootPath: string | null;
   gitRoot: string | null;
@@ -23,6 +38,7 @@ interface AppState {
   viewMode: ViewMode;
   markdownMode: MarkdownMode;
   sidebarOpen: boolean;
+  sidebarWidth: number;
   searchQuery: string;
 
   // Tree state
@@ -65,6 +81,7 @@ interface AppState {
   setMarkdownMode: (mode: MarkdownMode) => void;
   setSearchQuery: (query: string) => void;
   toggleSidebar: () => void;
+  setSidebarWidth: (width: number) => void;
   refreshGit: () => Promise<void>;
   selectCommit: (commit: GitCommitItem) => Promise<void>;
   showDiff: (filePath: string, hash?: string, staged?: boolean) => Promise<void>;
@@ -83,6 +100,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   viewMode: "markdown",
   markdownMode: "preview",
   sidebarOpen: true,
+  sidebarWidth: getStoredSidebarWidth(),
   searchQuery: "",
 
   rootEntries: [],
@@ -343,6 +361,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMarkdownMode: (mode: MarkdownMode) => set({ markdownMode: mode }),
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setSidebarWidth: (width: number) => {
+    set({ sidebarWidth: width });
+    try {
+      localStorage.setItem("lite_viewer_sidebar_width", width.toString());
+    } catch (e) {
+      // ignore
+    }
+  },
 
   refreshGit: async () => {
     const gitRoot = get().gitRoot;

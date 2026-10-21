@@ -30,7 +30,49 @@ export const MarkdownView: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isRestoringScroll = useRef(false);
+
+  const [splitPercent, setSplitPercent] = useState<number>(() => {
+    try {
+      const v = localStorage.getItem("lite_viewer_md_split");
+      if (v) {
+        const parsed = parseFloat(v);
+        if (!isNaN(parsed) && parsed >= 15 && parsed <= 85) return parsed;
+      }
+    } catch (e) {}
+    return 50;
+  });
+  const [isDraggingSplit, setIsDraggingSplit] = useState(false);
+
+  const handleSplitResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!containerRef.current) return;
+    setIsDraggingSplit(true);
+    const rect = containerRef.current.getBoundingClientRect();
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const offsetX = moveEvent.clientX - rect.left;
+      const percent = Math.max(15, Math.min(85, (offsetX / rect.width) * 100));
+      setSplitPercent(percent);
+      try {
+        localStorage.setItem("lite_viewer_md_split", percent.toFixed(1));
+      } catch (err) {}
+    };
+
+    const onMouseUp = () => {
+      setIsDraggingSplit(false);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
 
   const handleCopy = () => {
     if (!fileContent) return;
@@ -237,12 +279,13 @@ export const MarkdownView: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div ref={containerRef} className="flex-1 flex overflow-hidden">
         {/* Editor Pane (shown in 'raw' or 'split' mode) */}
         {(markdownMode === "raw" || markdownMode === "split") && (
           <div
-            className={`flex flex-col bg-[#161618] ${
-              markdownMode === "split" ? "w-1/2 border-r border-zinc-800" : "flex-1"
+            style={markdownMode === "split" ? { width: `${splitPercent}%` } : undefined}
+            className={`flex flex-col bg-[#161618] shrink-0 ${
+              markdownMode === "split" ? "" : "flex-1"
             }`}
           >
             <textarea
@@ -257,13 +300,33 @@ export const MarkdownView: React.FC = () => {
           </div>
         )}
 
+        {/* Resizer divider in split mode */}
+        {markdownMode === "split" && (
+          <div
+            onMouseDown={handleSplitResizeStart}
+            onDoubleClick={() => {
+              setSplitPercent(50);
+              try {
+                localStorage.setItem("lite_viewer_md_split", "50");
+              } catch (e) {}
+            }}
+            className={`relative w-[1px] bg-zinc-800 hover:bg-blue-500 transition-colors cursor-col-resize shrink-0 z-10 group ${
+              isDraggingSplit ? "bg-blue-500 shadow-sm shadow-blue-500/50" : ""
+            }`}
+            title="拖动调整左右比例 (双击重置为 50%)"
+          >
+            <div className="absolute inset-y-0 -left-1.5 -right-1.5 cursor-col-resize z-10" />
+          </div>
+        )}
+
         {/* Preview Pane (shown in 'preview' or 'split' mode) */}
         {(markdownMode === "preview" || markdownMode === "split") && (
           <div
             ref={previewRef}
             onScroll={handleScroll}
-            className={`flex-1 overflow-y-auto p-6 select-text bg-[#18181b] ${
-              markdownMode === "split" ? "w-1/2" : "w-full"
+            style={markdownMode === "split" ? { width: `${100 - splitPercent}%` } : undefined}
+            className={`overflow-y-auto p-6 select-text bg-[#18181b] ${
+              markdownMode === "split" ? "shrink-0" : "flex-1 w-full"
             }`}
           >
             <div
