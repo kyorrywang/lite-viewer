@@ -123,10 +123,6 @@ export const MarkdownView: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [saveCurrentFile]);
 
-  // Line & Word counts
-  const linesCount = fileContent.split("\n").length;
-  const wordCount = fileContent.trim() ? fileContent.trim().length : 0;
-
   if (!currentFilePath && !fileContent) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 text-xs">
@@ -203,12 +199,8 @@ export const MarkdownView: React.FC = () => {
           )}
         </div>
 
-        {/* Right: Stats & Action Button */}
+        {/* Right: Action Button */}
         <div className="flex items-center gap-3">
-          <div className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
-            {linesCount} 行 • {wordCount} 字符
-          </div>
-
           {markdownMode === "preview" ? (
             <button
               onClick={handleCopy}

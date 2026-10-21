@@ -8,10 +8,13 @@ import { CodeView } from "./components/CodeView";
 import { useAppStore } from "./store/useAppStore";
 
 export const App: React.FC = () => {
-  const { init, viewMode, statusMessage, gitRoot, currentFilePath } =
+  const { init, viewMode, statusMessage, gitRoot, currentFilePath, fileContent } =
     useAppStore();
 
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
+
+  const linesCount = fileContent ? fileContent.split("\n").length : 0;
+  const charsCount = fileContent ? fileContent.length : 0;
 
   const handleCopyPath = (path: string) => {
     navigator.clipboard.writeText(path);
@@ -81,11 +84,21 @@ export const App: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 font-mono text-[11px]">
           {statusMessage && (
-            <span className="text-blue-400 font-medium">{statusMessage}</span>
+            <span className="text-blue-400 font-medium font-sans">{statusMessage}</span>
           )}
-          <span>LiteViewer v0.1.0</span>
+          {currentFilePath ? (
+            <div className="flex items-center gap-2 text-zinc-400">
+              <span>{linesCount} 行</span>
+              <span className="text-zinc-600">•</span>
+              <span>{charsCount.toLocaleString()} 字符</span>
+              <span className="text-zinc-600">•</span>
+              <span className="text-zinc-500 font-sans">UTF-8</span>
+            </div>
+          ) : (
+            <span className="text-zinc-600 font-sans">就绪</span>
+          )}
         </div>
       </footer>
     </div>

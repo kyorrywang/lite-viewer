@@ -17,7 +17,6 @@ import { useAppStore } from "../store/useAppStore";
 export const Header: React.FC = () => {
   const {
     rootPath,
-    currentFileName,
     gitRoot,
     gitCommits,
     viewMode,
@@ -53,7 +52,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="h-12 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-3 select-none text-xs text-zinc-300">
-      {/* Left: Sidebar toggle, App Logo, Breadcrumb */}
+      {/* Left: Sidebar toggle, App Logo, Version */}
       <div className="flex items-center gap-2 overflow-hidden">
         <button
           onClick={toggleSidebar}
@@ -66,31 +65,14 @@ export const Header: React.FC = () => {
         <div className="flex items-center gap-1.5 font-semibold text-zinc-100 mr-2 shrink-0">
           <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
           <span>LiteViewer</span>
-        </div>
-
-        {/* Path / Current file indicator */}
-        <div className="flex items-center gap-1.5 text-zinc-400 truncate text-[11px]">
-          {rootPath && (
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-blue-400 border border-zinc-700/60 leading-none">
+            v0.4.0
+          </span>
+          {isDirty && (
             <span
-              className="truncate max-w-[200px] hover:text-zinc-200 cursor-pointer"
-              title={rootPath}
-            >
-              {rootPath.split(/[\/\\]/).pop()}
-            </span>
-          )}
-          {currentFileName && (
-            <>
-              <span className="text-zinc-600">/</span>
-              <span
-                className={`truncate font-medium ${
-                  isDirty ? "text-amber-400" : "text-zinc-200"
-                }`}
-                title={currentFileName}
-              >
-                {currentFileName}
-                {isDirty && <span className="ml-1 text-amber-400">*</span>}
-              </span>
-            </>
+              className="w-1.5 h-1.5 rounded-full bg-amber-400"
+              title="当前文件有未保存修改"
+            />
           )}
         </div>
       </div>

@@ -182,10 +182,6 @@ export const CodeView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-zinc-500 font-mono">
-            {lines.length} 行
-          </span>
-
           <button
             onClick={() => setIsEditing(!isEditing)}
             className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
