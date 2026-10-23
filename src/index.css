@@ -163,6 +163,20 @@ body {
   cursor: default;
 }
 
+/* KaTeX math formulas */
+.markdown-body .katex-display {
+  margin: 1.25em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5em 0;
+  text-align: center;
+}
+
+.markdown-body .katex {
+  font-size: 1.05em;
+  text-rendering: auto;
+}
+
 .markdown-body a {
   color: #60a5fa;
   text-decoration: none;

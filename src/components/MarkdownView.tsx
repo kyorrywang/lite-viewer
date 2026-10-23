@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Marked } from "marked";
+import markedKatex from "marked-katex-extension";
 import DOMPurify from "dompurify";
 import Prism from "../utils/prismSetup";
 import {
@@ -34,6 +35,13 @@ const markedInstance = new Marked({
     },
   },
 });
+
+markedInstance.use(
+  markedKatex({
+    throwOnError: false,
+    nonStandard: true,
+  })
+);
 
 export const MarkdownView: React.FC = () => {
   const {
@@ -108,6 +116,7 @@ export const MarkdownView: React.FC = () => {
     try {
       const raw = markedInstance.parse(fileContent) as string;
       return DOMPurify.sanitize(raw, {
+        USE_PROFILES: { html: true, mathMl: true, svg: true },
         ADD_ATTR: ["target", "disabled", "checked"],
         ADD_TAGS: ["input"],
       });
