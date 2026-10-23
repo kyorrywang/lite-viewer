@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, FolderOpen } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
 import { GitView } from "./components/GitView";
@@ -18,10 +19,15 @@ export const App: React.FC = () => {
     sidebarOpen,
     sidebarWidth,
     setSidebarWidth,
+    openFolder,
   } = useAppStore();
 
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
   const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+  const [selectionInfo, setSelectionInfo] = useState<{
+    chars: number;
+    lines: number;
+  } | null>(null);
 
   const linesCount = fileContent ? fileContent.split("\n").length : 0;
   const charsCount = fileContent ? fileContent.length : 0;
@@ -31,6 +37,65 @@ export const App: React.FC = () => {
     setCopiedPath(path);
     setTimeout(() => setCopiedPath(null), 1500);
   };
+
+  const handleOpenFolder = async (targetPath: string, e?: React.MouseEvent) => {
+    if (e?.altKey) {
+      const dir = targetPath.replace(/[\\\/][^\\\/]*$/, "");
+      if (dir) {
+        await openFolder(dir);
+        return;
+      }
+    }
+    try {
+      await invoke("show_in_folder", { path: targetPath });
+    } catch (err) {
+      console.error("Open in folder error:", err);
+    }
+  };
+
+  // Monitor text selection across document & editor inputs (VS Code style)
+  useEffect(() => {
+    const updateSelection = () => {
+      let text = "";
+      const activeEl = document.activeElement;
+
+      if (
+        activeEl &&
+        (activeEl instanceof HTMLTextAreaElement ||
+          (activeEl instanceof HTMLInputElement && activeEl.type === "text"))
+      ) {
+        const start = activeEl.selectionStart ?? 0;
+        const end = activeEl.selectionEnd ?? 0;
+        if (end > start) {
+          text = activeEl.value.substring(start, end);
+        }
+      }
+
+      if (!text) {
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed) {
+          text = sel.toString();
+        }
+      }
+
+      if (text.length > 0) {
+        const lines = text.split("\n").length;
+        setSelectionInfo({ chars: text.length, lines });
+      } else {
+        setSelectionInfo(null);
+      }
+    };
+
+    document.addEventListener("selectionchange", updateSelection);
+    document.addEventListener("mouseup", updateSelection);
+    document.addEventListener("keyup", updateSelection);
+
+    return () => {
+      document.removeEventListener("selectionchange", updateSelection);
+      document.removeEventListener("mouseup", updateSelection);
+      document.removeEventListener("keyup", updateSelection);
+    };
+  }, []);
 
   const handleSidebarResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -104,17 +169,26 @@ export const App: React.FC = () => {
               <span>Git:</span>
               <span className="text-zinc-300 font-mono">{gitRoot}</span>
               {!currentFilePath && (
-                <button
-                  onClick={() => handleCopyPath(gitRoot)}
-                  title="复制 Git 根目录路径"
-                  className="p-0.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors"
-                >
-                  {copiedPath === gitRoot ? (
-                    <Check size={11} className="text-emerald-400" />
-                  ) : (
-                    <Copy size={11} />
-                  )}
-                </button>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => handleCopyPath(gitRoot)}
+                    title="复制 Git 根目录路径"
+                    className="p-0.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors"
+                  >
+                    {copiedPath === gitRoot ? (
+                      <Check size={11} className="text-emerald-400" />
+                    ) : (
+                      <Copy size={11} />
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => handleOpenFolder(gitRoot, e)}
+                    title="在系统文件资源管理器中打开 Git 根目录"
+                    className="p-0.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors"
+                  >
+                    <FolderOpen size={11} />
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -134,6 +208,13 @@ export const App: React.FC = () => {
                   <Copy size={11} />
                 )}
               </button>
+              <button
+                onClick={(e) => handleOpenFolder(currentFilePath, e)}
+                title="在文件资源管理器中定位/打开所在文件夹 (Alt+点击在侧边栏打开目录)"
+                className="p-0.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors shrink-0"
+              >
+                <FolderOpen size={11} />
+              </button>
             </div>
           )}
         </div>
@@ -147,6 +228,15 @@ export const App: React.FC = () => {
               <span>{linesCount} 行</span>
               <span className="text-zinc-600">•</span>
               <span>{charsCount.toLocaleString()} 字符</span>
+              {selectionInfo && (
+                <>
+                  <span className="text-zinc-600">•</span>
+                  <span className="text-blue-400 font-medium">
+                    已选择 {selectionInfo.chars.toLocaleString()} 个字符
+                    {selectionInfo.lines > 1 ? ` (${selectionInfo.lines} 行)` : ""}
+                  </span>
+                </>
+              )}
               <span className="text-zinc-600">•</span>
               <span className="text-zinc-500 font-sans">UTF-8</span>
             </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { marked } from "marked";
+import { Marked } from "marked";
+import DOMPurify from "dompurify";
 import Prism from "../utils/prismSetup";
 import {
   Eye,
@@ -12,6 +13,27 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
+
+const markedInstance = new Marked({
+  gfm: true,
+  breaks: true,
+  renderer: {
+    code({ text, lang }) {
+      const rawLang = (lang || "").trim();
+      const language = rawLang.split(/\s+/)[0] || "plaintext";
+      const grammar = Prism.languages[language] || Prism.languages.plaintext;
+      const highlighted = grammar
+        ? Prism.highlight(text, grammar, language)
+        : text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+      const langClass = language ? `language-${language}` : "";
+      return `<pre class="${langClass}"><code class="${langClass}">${highlighted}</code></pre>`;
+    },
+  },
+});
 
 export const MarkdownView: React.FC = () => {
   const {
@@ -81,30 +103,14 @@ export const MarkdownView: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Configure marked with Prism syntax highlighting
+  // Render markdown with Prism syntax highlighting and DOMPurify sanitization
   const htmlContent = useMemo(() => {
     try {
-      marked.use({
-        gfm: true,
-        breaks: true,
-        renderer: {
-          code({ text, lang }) {
-            const rawLang = (lang || "").trim();
-            const language = rawLang.split(/\s+/)[0] || "plaintext";
-            const grammar = Prism.languages[language] || Prism.languages.plaintext;
-            const highlighted = grammar
-              ? Prism.highlight(text, grammar, language)
-              : text
-                  .replace(/&/g, "&amp;")
-                  .replace(/</g, "&lt;")
-                  .replace(/>/g, "&gt;");
-
-            const langClass = language ? `language-${language}` : "";
-            return `<pre class="${langClass}"><code class="${langClass}">${highlighted}</code></pre>`;
-          },
-        },
+      const raw = markedInstance.parse(fileContent) as string;
+      return DOMPurify.sanitize(raw, {
+        ADD_ATTR: ["target", "disabled", "checked"],
+        ADD_TAGS: ["input"],
       });
-      return marked.parse(fileContent) as string;
     } catch (err) {
       return `<p class="text-red-400">Markdown 渲染出错: ${err}</p>`;
     }

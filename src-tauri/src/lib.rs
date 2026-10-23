@@ -465,6 +465,41 @@ fn get_file_diff(
     Ok(diff)
 }
 
+#[tauri::command]
+fn show_in_folder(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Err("路径不存在".into());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let win_path = path.replace('/', "\\");
+        if p.is_dir() {
+            let _ = Command::new("explorer.exe").arg(&win_path).spawn();
+        } else {
+            let select_arg = format!("/select,{}", win_path);
+            let _ = Command::new("explorer.exe").arg(select_arg).spawn();
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if p.is_dir() {
+            let _ = Command::new("open").arg(&path).spawn();
+        } else {
+            let _ = Command::new("open").arg("-R").arg(&path).spawn();
+        }
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let parent = if p.is_dir() { p } else { p.parent().unwrap_or(p) };
+        let _ = Command::new("xdg-open").arg(parent).spawn();
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -480,7 +515,8 @@ pub fn run() {
             get_git_status,
             get_git_log,
             get_commit_detail,
-            get_file_diff
+            get_file_diff,
+            show_in_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

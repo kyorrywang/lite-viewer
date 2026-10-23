@@ -98,13 +98,69 @@ body {
   border-left: 0.25em solid #3f3f46;
 }
 
-.markdown-body ul,
-.markdown-body ol {
+/* Lists & Nested Lists */
+.markdown-body ul {
+  list-style-type: disc !important;
   padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body ol {
+  list-style-type: decimal !important;
+  padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body ul ul,
+.markdown-body ol ul {
+  list-style-type: circle !important;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.markdown-body ul ul ul,
+.markdown-body ol ul ul {
+  list-style-type: square !important;
+}
+
+.markdown-body ol ol,
+.markdown-body ul ol {
+  list-style-type: lower-roman !important;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.markdown-body ol ol ol,
+.markdown-body ul ol ol {
+  list-style-type: lower-alpha !important;
 }
 
 .markdown-body li {
   margin-top: 0.25em;
+  line-height: 1.6;
+}
+
+.markdown-body li > p {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* GFM Task Lists (- [ ] and - [x]) */
+.markdown-body .task-list-item,
+.markdown-body li:has(> input[type="checkbox"]),
+.markdown-body li:has(> p > input[type="checkbox"]) {
+  list-style-type: none !important;
+}
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+  accent-color: #3b82f6;
+  width: 14px;
+  height: 14px;
+  cursor: default;
 }
 
 .markdown-body a {
